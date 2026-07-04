@@ -1,9 +1,12 @@
 FROM node:18
 
-RUN apt-get update && apt-get install -y ffmpeg python3 python3-pip
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    python3 \
+    python3-pip
 
-# install yt-dlp properly
-RUN pip3 install -U yt-dlp
+# IMPORTANT FIX for PEP 668
+RUN python3 -m pip install --no-cache-dir --break-system-packages yt-dlp
 
 WORKDIR /app
 
