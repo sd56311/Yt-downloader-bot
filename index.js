@@ -1,13 +1,13 @@
 const TelegramBot = require("node-telegram-bot-api");
-const ytdl = require("ytdl-core");
+const { exec } = require("child_process");
+const fs = require("fs");
 
 const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
 
 bot.onText(/\/start/, (msg) => {
-  bot.sendMessage(
-    msg.chat.id,
-    "👋 Send me a YouTube link and I will download video for you."
+  bot.sendMessage(msg.chat.id,
+    "👋 Send YouTube link\nI will download video for you"
   );
 });
 
@@ -19,29 +19,26 @@ bot.on("message", async (msg) => {
 
   const url = text.trim();
 
-  if (!ytdl.validateURL(url)) {
-    return bot.sendMessage(chatId, "❌ Invalid YouTube link");
-  }
+  bot.sendMessage(chatId, "⏳ Downloading...");
 
-  try {
-    bot.sendMessage(chatId, "⏳ Processing video...");
+  const fileName = `video_${Date.now()}.mp4`;
 
-    const info = await ytdl.getInfo(url);
-    const title = info.videoDetails.title;
+  const cmd = `yt-dlp -f "best[ext=mp4]" -o "${fileName}" "${url}"`;
 
-    const stream = ytdl(url, {
-      filter: "videoandaudio",
-      quality: "18"
-    });
+  exec(cmd, async (error) => {
+    if (error) {
+      console.log(error);
+      return bot.sendMessage(chatId, "❌ Download failed");
+    }
 
-    bot.sendMessage(chatId, `⬇️ Downloading: ${title}`);
+    try {
+      await bot.sendVideo(chatId, fileName, {
+        caption: "✅ Download complete"
+      });
 
-    bot.sendVideo(chatId, stream, {
-      caption: title
-    });
-
-  } catch (err) {
-    console.log(err);
-    bot.sendMessage(chatId, "❌ Error downloading video");
-  }
+      fs.unlinkSync(fileName); // delete file after send
+    } catch (err) {
+      bot.sendMessage(chatId, "❌ Send failed");
+    }
+  });
 });
